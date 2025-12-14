@@ -1,0 +1,14 @@
+{
+  "tests": [
+    {
+      "name": "Get call history",
+      "method": "GET",
+      "path": "/?action=call_history",
+      "headers": {
+        "X-User-Id": "1"
+      },
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    }
+  ]
+}

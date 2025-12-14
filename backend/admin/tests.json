@@ -1,0 +1,17 @@
+{
+  "tests": [
+    {
+      "name": "Get system stats",
+      "method": "GET",
+      "path": "/?action=stats",
+      "headers": {
+        "X-User-Id": "1"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "totalUsers": "number"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
