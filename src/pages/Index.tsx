@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import AuthScreen from '@/components/AuthScreen';
+import VideoCall from '@/components/VideoCall';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,7 +60,14 @@ const Index = () => {
   const [groupName, setGroupName] = useState('');
   const [adminStats, setAdminStats] = useState<any>(null);
   const [adminLogs, setAdminLogs] = useState<any[]>([]);
-  const [callState, setCallState] = useState<{ active: boolean; type?: 'audio' | 'video'; duration?: number }>({ active: false });
+  const [activeCall, setActiveCall] = useState<{ 
+    active: boolean; 
+    type?: 'audio' | 'video'; 
+    isIncoming?: boolean;
+    callerId?: number;
+    callerName?: string;
+    callerAvatar?: string;
+  } | null>(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('currentUser');
@@ -183,13 +191,59 @@ const Index = () => {
     const currentChat = chats.find(c => c.id === selectedChat);
     if (!currentChat || currentChat.isGroup) return;
     
-    setCallState({ active: true, type, duration: 0 });
-    toast.success(`${type === 'audio' ? 'Аудио' : 'Видео'} звонок начат`);
+    try {
+      await api.calls.initiateCall(
+        currentUser.id.toString(), 
+        currentChat.userId?.toString() || '', 
+        type, 
+        {}
+      );
+      
+      setActiveCall({
+        active: true,
+        type,
+        isIncoming: false,
+        callerName: currentChat.name,
+        callerAvatar: currentChat.avatar
+      });
+    } catch (error) {
+      toast.error('Ошибка инициализации звонка');
+    }
+  };
+
+  const handleEndCall = async () => {
+    if (!currentUser || !activeCall) return;
     
-    setTimeout(() => {
-      setCallState({ active: false });
-      toast.info('Звонок завершён');
-    }, 5000);
+    try {
+      await api.calls.endCall(currentUser.id.toString(), '1', 0);
+      setActiveCall(null);
+      toast.success('Звонок завершён');
+    } catch (error) {
+      toast.error('Ошибка завершения звонка');
+    }
+  };
+
+  const handleAcceptCall = async () => {
+    if (!currentUser || !activeCall) return;
+    
+    try {
+      await api.calls.answerCall(currentUser.id.toString(), '1', {});
+      toast.success('Звонок принят');
+    } catch (error) {
+      toast.error('Ошибка принятия звонка');
+    }
+  };
+
+  const handleRejectCall = async () => {
+    if (!currentUser || !activeCall) return;
+    
+    try {
+      await api.calls.rejectCall(currentUser.id.toString(), '1');
+      setActiveCall(null);
+      toast.success('Звонок отклонён');
+    } catch (error) {
+      toast.error('Ошибка отклонения звонка');
+    }
   };
 
   const handleBuyPremium = async () => {
@@ -444,15 +498,6 @@ const Index = () => {
               </div>
             </div>
 
-            {callState.active && (
-              <div className="bg-primary text-white p-4 text-center">
-                <p className="font-semibold">
-                  {callState.type === 'audio' ? '🎤 Аудио звонок' : '📹 Видео звонок'}
-                </p>
-                <p className="text-sm">Звонок активен...</p>
-              </div>
-            )}
-
             <ScrollArea className="flex-1 p-4 bg-secondary/30">
               <div className="space-y-4 max-w-4xl mx-auto">
                 {messages.map((message) => (
@@ -653,6 +698,18 @@ const Index = () => {
           </div>
         )}
       </div>
+
+      {activeCall && activeCall.active && (
+        <VideoCall
+          isIncoming={activeCall.isIncoming}
+          callerName={activeCall.callerName}
+          callerAvatar={activeCall.callerAvatar}
+          callType={activeCall.type || 'audio'}
+          onEnd={handleEndCall}
+          onAccept={activeCall.isIncoming ? handleAcceptCall : undefined}
+          onReject={activeCall.isIncoming ? handleRejectCall : undefined}
+        />
+      )}
     </div>
   );
 };
